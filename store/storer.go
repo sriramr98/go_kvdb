@@ -1,4 +1,4 @@
-package core
+package store
 
 type DataStorer[K comparable, V any] interface {
 	Get(key K) (V, bool)
