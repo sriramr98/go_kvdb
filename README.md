@@ -3,7 +3,6 @@
 Go KVDB is a lightweight and efficient database system designed to store key-value pairs. It provides three main commands: SET, GET, and DELETE, allowing you to store, retrieve, and delete data in a simple and intuitive manner.
 
 ![CI](https://github.com/sriramr98/go_kvdb/actions/workflows/test.yml/badge.svg)
-
 ## Features
 
 - **SET**: Store a key-value pair in the database, with an optional time-to-live (TTL) value.
