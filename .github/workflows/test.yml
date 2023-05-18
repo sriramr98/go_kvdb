@@ -6,7 +6,7 @@ on:
       - '**/*.go'
     branches:
       - dev
-      - master
+      - main
     types:
       - opened
       - synchronize
