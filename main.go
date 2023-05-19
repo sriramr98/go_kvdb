@@ -1,8 +1,9 @@
 package main
 
-import "fmt"
-
+import (
+	"gitub.com/sriramr98/go_kvdb/core"
+)
 
 func main() {
-  fmt.Println("Hi")
+	core.NewServer(core.ServerOpts{Port: 8080}).Start()
 }
