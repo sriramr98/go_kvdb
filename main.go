@@ -9,4 +9,4 @@ func main() {
 	inmemstore := store.NewInMemoryStore()
 	processor := &core.CommandProcessor{Store: inmemstore}
 	core.NewServer(core.ServerOpts{Port: 8080}, processor).Start()
-}
+)
