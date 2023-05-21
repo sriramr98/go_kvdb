@@ -2,7 +2,6 @@ package core
 
 import (
 	"io"
-	"sync"
 
 	"gitub.com/sriramr98/go_kvdb/utils"
 )
@@ -11,12 +10,11 @@ type Log struct {
 }
 
 type WalLogger struct {
-	mu         sync.Mutex
 	serializer utils.Serializer[Log]
-	writer     io.Writer
+	writer     io.WriteCloser
 }
 
-func NewWalLogger(writer io.Writer, serializer utils.Serializer[Log]) *WalLogger {
+func NewWalLogger(writer io.WriteCloser, serializer utils.Serializer[Log]) *WalLogger {
 	return &WalLogger{
 		writer:     writer,
 		serializer: serializer,
@@ -35,7 +33,6 @@ func (wl *WalLogger) Write(log Log) error {
 
 }
 
-func (wl *WalLogger) Close() {
-	wl.mu.Lock()
-	defer wl.mu.Unlock()
+func (wc *WalLogger) Close() error {
+	return wc.writer.Close()
 }

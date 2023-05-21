@@ -3,7 +3,6 @@ package utils
 import (
 	"bufio"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -60,7 +59,8 @@ func (brfw *BuffRotateFileWriter) Write(data []byte) (int, error) {
 	brfw.mu.Lock()
 	defer brfw.mu.Unlock()
 
-	data_to_write := []byte(fmt.Sprintf("%s\n", data))
+	data_to_write := brfw.addNewLine(data)
+
 	totalBytesWritten := brfw.bytesWritten + int64(len(data_to_write))
 	if totalBytesWritten > brfw.fileBytesTreshold && brfw.bytesWritten > 0 {
 		if err := brfw.rotateFile(); err != nil {
@@ -74,19 +74,17 @@ func (brfw *BuffRotateFileWriter) Write(data []byte) (int, error) {
 }
 
 func (brfw *BuffRotateFileWriter) rotateFile() error {
-	if brfw.file != nil {
-		err := brfw.writer.Flush()
-		if err != nil {
+	if brfw.writer != nil {
+		if err := brfw.writer.Flush(); err != nil {
 			return err
 		}
-
-		err = brfw.file.Close()
-		if err != nil {
+	}
+	if brfw.file != nil {
+		if err := brfw.file.Close(); err != nil {
 			return err
 		}
 	}
 
-	fmt.Printf("creating file with index %d", brfw.lastFileIndex+1)
 	file, err := os.Create(filepath.Join(brfw.dirpath, strconv.Itoa(brfw.lastFileIndex+1)))
 	if err != nil {
 		return err
@@ -118,4 +116,11 @@ func (brfw *BuffRotateFileWriter) Close() error {
 	brfw.file = nil
 
 	return nil
+}
+
+func (brfw *BuffRotateFileWriter) addNewLine(data []byte) []byte {
+	if len(data) > 0 && data[len(data)-1] != '\n' {
+		data = append(data, '\n')
+	}
+	return data
 }
