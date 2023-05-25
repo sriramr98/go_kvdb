@@ -4,42 +4,43 @@ import (
 	"strconv"
 	"time"
 
+	"gitub.com/sriramr98/go_kvdb/core/protocol"
 	"gitub.com/sriramr98/go_kvdb/store"
 )
 
 type RequestProcessor interface {
-	Process(request Request) (Response, error)
+	Process(request protocol.Request) (protocol.Response, error)
 }
 
 type CommandProcessor struct {
 	Store store.DataStorer[string, []byte]
 }
 
-func (cp *CommandProcessor) Process(request Request) (Response, error) {
+func (cp *CommandProcessor) Process(request protocol.Request) (protocol.Response, error) {
 	switch request.Command {
-	case CMDGet:
+	case protocol.CMDGet:
 		return cp.processGet(request)
-	case CMDSet:
+	case protocol.CMDSet:
 		return cp.processSet(request)
-	case CMDDel:
+	case protocol.CMDDel:
 		return cp.processDel(request)
-	case CMDPing:
+	case protocol.CMDPing:
 		return cp.processPing(request)
 	default:
-		return Response{}, ErrInvalidCommand
+		return protocol.Response{}, protocol.ErrInvalidCommand
 	}
 }
 
-func (cp *CommandProcessor) processGet(request Request) (Response, error) {
+func (cp *CommandProcessor) processGet(request protocol.Request) (protocol.Response, error) {
 	res, err := cp.Store.Get(request.Params[0])
 	if err != nil {
-		return Response{}, err
+		return protocol.Response{}, err
 	}
 
-	return Response{Success: true, Value: res}, nil
+	return protocol.Response{Success: true, Value: res}, nil
 }
 
-func (cp *CommandProcessor) processSet(request Request) (Response, error) {
+func (cp *CommandProcessor) processSet(request protocol.Request) (protocol.Response, error) {
 
 	key := request.Params[0]
 	value := request.Params[1]
@@ -51,21 +52,21 @@ func (cp *CommandProcessor) processSet(request Request) (Response, error) {
 		if err != nil {
 			// If we're not able to set the TTL, we should delete the key
 			cp.Store.Delete(key)
-			return Response{}, err
+			return protocol.Response{}, err
 		}
 		go cp.processExpiry(key, time.Duration(ttlSet)*time.Second)
 	}
 
-	return Response{Success: true}, nil
+	return protocol.Response{Success: true}, nil
 }
 
-func (cp *CommandProcessor) processDel(request Request) (Response, error) {
+func (cp *CommandProcessor) processDel(request protocol.Request) (protocol.Response, error) {
 	cp.Store.Delete(request.Params[0])
-	return Response{Success: true}, nil
+	return protocol.Response{Success: true}, nil
 }
 
-func (cp *CommandProcessor) processPing(request Request) (Response, error) {
-	return Response{Success: true, Value: []byte("PONG")}, nil
+func (cp *CommandProcessor) processPing(request protocol.Request) (protocol.Response, error) {
+	return protocol.Response{Success: true, Value: []byte("PONG")}, nil
 }
 
 func (cp *CommandProcessor) processExpiry(key string, ttl time.Duration) {

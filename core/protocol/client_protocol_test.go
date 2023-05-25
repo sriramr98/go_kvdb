@@ -1,4 +1,4 @@
-package core
+package protocol
 
 import (
 	"errors"
@@ -32,7 +32,7 @@ func TestProtocol(t *testing.T) {
 		t.Run("should return CMDGet", func(t *testing.T) {
 			cmd, err := parseCommand("GET")
 			if cmd != CMDGet {
-				t.Errorf("Expected %s, got %s", CMDGet.Cmd, cmd.Cmd)
+				t.Errorf("Expected %s, got %s", CMDGet.Op, cmd.Op)
 			}
 			if err != nil {
 				t.Errorf("Expected nil, got %s", err)
@@ -42,7 +42,7 @@ func TestProtocol(t *testing.T) {
 		t.Run("should return CMDSet", func(t *testing.T) {
 			cmd, err := parseCommand("SET")
 			if cmd != CMDSet {
-				t.Errorf("Expected %s, got %s", CMDSet.Cmd, cmd.Cmd)
+				t.Errorf("Expected %s, got %s", CMDSet.Op, cmd.Op)
 			}
 			if err != nil {
 				t.Errorf("Expected nil, got %s", err)
@@ -52,7 +52,7 @@ func TestProtocol(t *testing.T) {
 		t.Run("should return CMDDel", func(t *testing.T) {
 			cmd, err := parseCommand("DEL")
 			if cmd != CMDDel {
-				t.Errorf("Expected %s, got %s", CMDDel.Cmd, cmd.Cmd)
+				t.Errorf("Expected %s, got %s", CMDDel.Op, cmd.Op)
 			}
 			if err != nil {
 				t.Errorf("Expected nil, got %s", err)
@@ -62,7 +62,7 @@ func TestProtocol(t *testing.T) {
 		t.Run("should return CMDPing", func(t *testing.T) {
 			cmd, err := parseCommand("PING")
 			if cmd != CMDPing {
-				t.Errorf("Expected %s, got %s", CMDPing.Cmd, cmd.Cmd)
+				t.Errorf("Expected %s, got %s", CMDPing.Op, cmd.Op)
 			}
 			if err != nil {
 				t.Errorf("Expected nil, got %s", err)
@@ -72,7 +72,7 @@ func TestProtocol(t *testing.T) {
 		t.Run("should return empty command", func(t *testing.T) {
 			cmd, err := parseCommand("INVALID")
 			if cmd != (Command{}) {
-				t.Errorf("Expected empty command, got %s", cmd.Cmd)
+				t.Errorf("Expected empty command, got %s", cmd.Op)
 			}
 			if !errors.Is(err, ErrInvalidCommand) {
 				t.Errorf("Expected %s, got %s", ErrInvalidCommand, err)
@@ -83,8 +83,10 @@ func TestProtocol(t *testing.T) {
 
 	t.Run("Parse", func(t *testing.T) {
 
+		p := ClientProtocol{}
+
 		t.Run("should return error", func(t *testing.T) {
-			_, err := ParseProtocol("")
+			_, err := p.Parse("")
 			if err == nil {
 				t.Errorf("Expected error, got nil")
 			}
@@ -95,12 +97,12 @@ func TestProtocol(t *testing.T) {
 		})
 
 		t.Run("parses valid command", func(t *testing.T) {
-			req, err := ParseProtocol("GET key")
+			req, err := p.Parse("GET key")
 			if err != nil {
 				t.Errorf("Expected nil, got %s", err)
 			}
 			if req.Command != CMDGet {
-				t.Errorf("Expected %s, got %s", CMDGet.Cmd, req.Command.Cmd)
+				t.Errorf("Expected %s, got %s", CMDGet.Op, req.Command.Op)
 			}
 			if len(req.Params) != 1 {
 				t.Errorf("Expected 1, got %d", len(req.Params))
@@ -111,12 +113,12 @@ func TestProtocol(t *testing.T) {
 		})
 
 		t.Run("parses valid SET command with optional TTL", func(t *testing.T) {
-			req, err := ParseProtocol("SET key value 100")
+			req, err := p.Parse("SET key value 100")
 			if err != nil {
 				t.Errorf("Expected nil, got %s", err)
 			}
 			if req.Command != CMDSet {
-				t.Errorf("Expected %s, got %s", CMDSet.Cmd, req.Command.Cmd)
+				t.Errorf("Expected %s, got %s", CMDSet.Op, req.Command.Op)
 			}
 			if len(req.Params) != 3 {
 				t.Errorf("Expected 3, got %d", len(req.Params))

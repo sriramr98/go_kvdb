@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"net"
+
+	"gitub.com/sriramr98/go_kvdb/core/protocol"
 )
 
 type ServerOpts struct {
@@ -14,10 +16,11 @@ type ServerOpts struct {
 type Server struct {
 	opts             ServerOpts
 	requestProcessor RequestProcessor
+	protocol         protocol.Protocol
 }
 
-func NewServer(opts ServerOpts, processor RequestProcessor) *Server {
-	return &Server{opts: opts, requestProcessor: processor}
+func NewServer(opts ServerOpts, processor RequestProcessor, protocol protocol.Protocol) *Server {
+	return &Server{opts: opts, requestProcessor: processor, protocol: protocol}
 }
 
 func (s *Server) Start() {
@@ -63,7 +66,7 @@ func (s *Server) handleConnection(conn net.Conn) {
 		data_received = data_received[:len(data_received)-1]
 		fmt.Printf("Received %d bytes: %s\n", n, data_received)
 
-		request, err := ParseProtocol(data_received)
+		request, err := s.protocol.Parse(data_received)
 		if err != nil {
 			fmt.Printf("Error parsing protocol %s\n", err)
 			s.writeError(err, conn)

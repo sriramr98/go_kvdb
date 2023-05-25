@@ -3,6 +3,8 @@ package core
 import (
 	"testing"
 	"time"
+
+	"gitub.com/sriramr98/go_kvdb/core/protocol"
 )
 
 type MockDataStore struct {
@@ -24,13 +26,13 @@ func (mds *MockDataStore) Delete(key string) {
 	mds.DeleteCalled = true
 }
 
-func TestProcessor(t *testing.T) {
+func TestCommandProcessor(t *testing.T) {
 
 	store := &MockDataStore{}
 	cmd_processor := CommandProcessor{Store: store}
 
 	t.Run("Test Get", func(t *testing.T) {
-		request := Request{Command: CMDGet, Params: []string{"test"}}
+		request := protocol.Request{Command: protocol.CMDGet, Params: []string{"test"}}
 		cmd_processor.Process(request)
 		if !store.GetCalled {
 			t.Errorf("Get not called")
@@ -38,7 +40,7 @@ func TestProcessor(t *testing.T) {
 	})
 
 	t.Run("Test Set", func(t *testing.T) {
-		request := Request{Command: CMDSet, Params: []string{"test", "test"}}
+		request := protocol.Request{Command: protocol.CMDSet, Params: []string{"test", "test"}}
 		cmd_processor.Process(request)
 		if !store.SetCalled {
 			t.Errorf("Set not called")
@@ -46,7 +48,7 @@ func TestProcessor(t *testing.T) {
 	})
 
 	t.Run("Test Delete", func(t *testing.T) {
-		request := Request{Command: CMDDel, Params: []string{"test"}}
+		request := protocol.Request{Command: protocol.CMDDel, Params: []string{"test"}}
 		cmd_processor.Process(request)
 		if !store.DeleteCalled {
 			t.Errorf("Delete not called")
@@ -54,7 +56,7 @@ func TestProcessor(t *testing.T) {
 	})
 
 	t.Run("Test Set with TTL", func(t *testing.T) {
-		request := Request{Command: CMDSet, Params: []string{"test", "test", "2"}}
+		request := protocol.Request{Command: protocol.CMDSet, Params: []string{"test", "test", "2"}}
 		cmd_processor.Process(request)
 		if !store.SetCalled {
 			t.Errorf("Set not called")
