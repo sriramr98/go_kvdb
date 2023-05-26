@@ -29,8 +29,10 @@ func TestProtocol(t *testing.T) {
 
 	t.Run("parseCommand", func(t *testing.T) {
 
+		p := ClientProtocol{}
+
 		t.Run("should return CMDGet", func(t *testing.T) {
-			cmd, err := parseCommand("GET")
+			cmd, err := p.extractCommand("GET")
 			if cmd != CMDGet {
 				t.Errorf("Expected %s, got %s", CMDGet.Op, cmd.Op)
 			}
@@ -40,7 +42,7 @@ func TestProtocol(t *testing.T) {
 		})
 
 		t.Run("should return CMDSet", func(t *testing.T) {
-			cmd, err := parseCommand("SET")
+			cmd, err := p.extractCommand("SET")
 			if cmd != CMDSet {
 				t.Errorf("Expected %s, got %s", CMDSet.Op, cmd.Op)
 			}
@@ -50,7 +52,7 @@ func TestProtocol(t *testing.T) {
 		})
 
 		t.Run("should return CMDDel", func(t *testing.T) {
-			cmd, err := parseCommand("DEL")
+			cmd, err := p.extractCommand("DEL")
 			if cmd != CMDDel {
 				t.Errorf("Expected %s, got %s", CMDDel.Op, cmd.Op)
 			}
@@ -60,7 +62,7 @@ func TestProtocol(t *testing.T) {
 		})
 
 		t.Run("should return CMDPing", func(t *testing.T) {
-			cmd, err := parseCommand("PING")
+			cmd, err := p.extractCommand("PING")
 			if cmd != CMDPing {
 				t.Errorf("Expected %s, got %s", CMDPing.Op, cmd.Op)
 			}
@@ -70,7 +72,7 @@ func TestProtocol(t *testing.T) {
 		})
 
 		t.Run("should return empty command", func(t *testing.T) {
-			cmd, err := parseCommand("INVALID")
+			cmd, err := p.extractCommand("INVALID")
 			if cmd != (Command{}) {
 				t.Errorf("Expected empty command, got %s", cmd.Op)
 			}

@@ -1,7 +1,6 @@
 package protocol
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 )
@@ -16,7 +15,7 @@ var (
 type ClientProtocol struct {
 }
 
-func parseCommand(cmd string) (Command, error) {
+func (f ClientProtocol) extractCommand(cmd string) (Command, error) {
 	switch cmd {
 	case CMDGet.Op:
 		return CMDGet, nil
@@ -35,17 +34,17 @@ func (p ClientProtocol) Parse(input string) (Request, error) {
 	input_parts := strings.Split(input, " ")
 	fmt.Println(len(input_parts))
 	if len(input_parts) == 0 {
-		return Request{}, errors.New("empty request")
+		return Request{}, ErrInvalidRequest
 	}
 
-	command, err := parseCommand(input_parts[0])
+	command, err := p.extractCommand(input_parts[0])
 	if err != nil {
 		return Request{}, err
 	}
 	params := input_parts[1:]
 
 	if !command.isParamsValid(params) {
-		return Request{}, errors.New("invalid params")
+		return Request{}, ErrInvalidRequest
 	}
 
 	return Request{Command: command, Params: params}, nil

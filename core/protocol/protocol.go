@@ -5,6 +5,7 @@ import (
 )
 
 var ErrInvalidCommand = errors.New("invalid command")
+var ErrInvalidRequest = errors.New("invalid request")
 
 type Request struct {
 	Command Command
@@ -17,6 +18,7 @@ type Response struct {
 }
 type Protocol interface {
 	Parse(input string) (Request, error)
+	extractCommand(input string) (Command, error)
 }
 
 type Command struct {

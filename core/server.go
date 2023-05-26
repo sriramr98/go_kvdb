@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 
+	"gitub.com/sriramr98/go_kvdb/core/processors"
 	"gitub.com/sriramr98/go_kvdb/core/protocol"
 )
 
@@ -15,11 +16,11 @@ type ServerOpts struct {
 
 type Server struct {
 	opts             ServerOpts
-	requestProcessor RequestProcessor
+	requestProcessor processors.RequestProcessor
 	protocol         protocol.Protocol
 }
 
-func NewServer(opts ServerOpts, processor RequestProcessor, protocol protocol.Protocol) *Server {
+func NewServer(opts ServerOpts, processor processors.RequestProcessor, protocol protocol.Protocol) *Server {
 	return &Server{opts: opts, requestProcessor: processor, protocol: protocol}
 }
 
