@@ -26,6 +26,10 @@ func (mds *MockDataStore) Delete(key string) {
 	mds.DeleteCalled = true
 }
 
+func (mds *MockDataStore) GetAllKeys() []string {
+	return []string{"test"}
+}
+
 func TestCommandProcessor(t *testing.T) {
 
 	store := &MockDataStore{}

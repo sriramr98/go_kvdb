@@ -6,10 +6,10 @@ import (
 )
 
 var (
-	CMDGet  Command = Command{Op: "GET", MinRequiredParams: 1}
-	CMDSet  Command = Command{Op: "SET", MinRequiredParams: 2}
-	CMDDel  Command = Command{Op: "DEL", MinRequiredParams: 1}
-	CMDPing Command = Command{Op: "PING", MinRequiredParams: 0}
+	CMDGet  Command = Command{Op: "GET", MinRequiredParams: 1, IsReplicable: false}
+	CMDSet  Command = Command{Op: "SET", MinRequiredParams: 2, IsReplicable: true}
+	CMDDel  Command = Command{Op: "DEL", MinRequiredParams: 1, IsReplicable: true}
+	CMDPing Command = Command{Op: "PING", MinRequiredParams: 0, IsReplicable: false}
 )
 
 type ClientProtocol struct {

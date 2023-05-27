@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -8,20 +9,46 @@ import (
 
 	"gitub.com/sriramr98/go_kvdb/core/processors"
 	"gitub.com/sriramr98/go_kvdb/core/protocol"
+	"gitub.com/sriramr98/go_kvdb/store"
+)
+
+type ServerRole int
+
+const (
+	ClientServerRole  ServerRole = iota
+	ReplicaServerRole ServerRole = iota
 )
 
 type ServerOpts struct {
-	Port int
+	Port       int
+	Role       ServerRole
+	IsLeader   bool
+	LeaderAddr string
 }
 
 type Server struct {
 	opts             ServerOpts
 	requestProcessor processors.RequestProcessor
 	protocol         protocol.Protocol
+	followerStore    store.DataStorer[net.Conn, struct{}]
+	leaderConn       net.Conn
 }
 
-func NewServer(opts ServerOpts, processor processors.RequestProcessor, protocol protocol.Protocol) *Server {
-	return &Server{opts: opts, requestProcessor: processor, protocol: protocol}
+func NewServer(opts ServerOpts, clientProcessor processors.RequestProcessor, followerStore store.DataStorer[net.Conn, struct{}], protocol protocol.Protocol, ctx context.Context) *Server {
+	server := &Server{opts: opts, requestProcessor: clientProcessor, protocol: protocol, followerStore: followerStore}
+
+	// If this is a follower, we don't wanna start the follower without making a connection to the leader
+	if !opts.IsLeader {
+		leaderConn, err := net.Dial("tcp", opts.LeaderAddr)
+		if err != nil {
+			fmt.Printf("Error connecting to leader %s\n", err)
+			return nil
+		}
+
+		server.leaderConn = leaderConn
+	}
+
+	return server
 }
 
 func (s *Server) Start() {
@@ -33,6 +60,15 @@ func (s *Server) Start() {
 	}
 	defer ln.Close()
 
+	if !s.opts.IsLeader {
+		s.syncWithLeader()
+		go s.handleConnection(s.leaderConn)
+	}
+
+	s.listenForConnections(ln)
+}
+
+func (s *Server) listenForConnections(ln net.Listener) {
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
@@ -43,8 +79,40 @@ func (s *Server) Start() {
 			fmt.Printf("Error %s\n", err)
 			continue
 		}
+
+		if s.opts.Role == ReplicaServerRole {
+			s.followerStore.Set(conn, struct{}{})
+		}
+
 		go s.handleConnection(conn)
 	}
+}
+
+func (s *Server) syncWithLeader() {
+	_, err := s.leaderConn.Write([]byte("SYNC\n"))
+	if err != nil {
+		fmt.Printf("Error syncing with leader %s\n", err)
+		return
+	}
+
+	buf := make([]byte, 2048)
+	n, err := s.leaderConn.Read(buf)
+	if err != nil {
+		if errors.Is(err, io.EOF) {
+			fmt.Println("Connection closed")
+			return
+		}
+		fmt.Printf("Error %s", err)
+		return
+	}
+
+	data_received := buf[:n]
+	fmt.Printf("Received state %s\n", string(data_received))
+
+	//TODO: Deserialize state
+
+	//TODO: Set state in client store
+	// s.requestProcessor.SetAll()
 }
 
 func (s *Server) handleConnection(conn net.Conn) {
@@ -80,7 +148,24 @@ func (s *Server) handleConnection(conn net.Conn) {
 			continue
 		}
 
+		if s.opts.Role == ClientServerRole && request.Command.IsReplicable {
+			go s.propogateToFollowers(data_received)
+		}
+
 		s.writeSuccess(response.Value, conn)
+	}
+}
+
+func (s *Server) propogateToFollowers(data string) {
+	fmt.Println("Propogating request to all followers..")
+	followers := s.followerStore.GetAllKeys()
+
+	for _, follower := range followers {
+		_, err := follower.Write([]byte(fmt.Sprintf("%s\n", data)))
+		if err != nil {
+			fmt.Printf("Error writing to follower %s\n", err)
+			continue
+		}
 	}
 }
 
