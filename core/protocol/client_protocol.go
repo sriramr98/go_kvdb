@@ -1,15 +1,14 @@
 package protocol
 
 import (
-	"fmt"
 	"strings"
 )
 
 var (
-	CMDGet  Command = Command{Op: "GET", MinRequiredParams: 1, IsReplicable: false}
-	CMDSet  Command = Command{Op: "SET", MinRequiredParams: 2, IsReplicable: true}
-	CMDDel  Command = Command{Op: "DEL", MinRequiredParams: 1, IsReplicable: true}
-	CMDPing Command = Command{Op: "PING", MinRequiredParams: 0, IsReplicable: false}
+	CMDGet  Command = Command{Op: "GET", MinRequiredParams: 1, IsReplicable: false, CanFollowerProcess: true}
+	CMDSet  Command = Command{Op: "SET", MinRequiredParams: 2, IsReplicable: true, CanFollowerProcess: false}
+	CMDDel  Command = Command{Op: "DEL", MinRequiredParams: 1, IsReplicable: true, CanFollowerProcess: false}
+	CMDPing Command = Command{Op: "PING", MinRequiredParams: 0, IsReplicable: false, CanFollowerProcess: true}
 )
 
 type ClientProtocol struct {
@@ -32,7 +31,6 @@ func (f ClientProtocol) extractCommand(cmd string) (Command, error) {
 
 func (p ClientProtocol) Parse(input string) (Request, error) {
 	input_parts := strings.Split(input, " ")
-	fmt.Println(len(input_parts))
 	if len(input_parts) == 0 {
 		return Request{}, ErrInvalidRequest
 	}

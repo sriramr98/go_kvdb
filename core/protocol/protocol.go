@@ -22,9 +22,10 @@ type Protocol interface {
 }
 
 type Command struct {
-	Op                string
-	MinRequiredParams int
-	IsReplicable      bool
+	Op                 string
+	MinRequiredParams  int
+	IsReplicable       bool
+	CanFollowerProcess bool
 }
 
 func (c Command) isParamsValid(params []string) bool {

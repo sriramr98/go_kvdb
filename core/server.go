@@ -15,8 +15,9 @@ import (
 type ServerRole int
 
 const (
-	ClientServerRole  ServerRole = iota
-	ReplicaServerRole ServerRole = iota
+	ClientServerRole  ServerRole = 1
+	ReplicaServerRole ServerRole = 2
+	BufferSize                   = 2048
 )
 
 type ServerOpts struct {
@@ -34,76 +35,64 @@ type Server struct {
 	leaderConn       net.Conn
 }
 
-func NewServer(opts ServerOpts, clientProcessor processors.RequestProcessor, followerStore store.DataStorer[net.Conn, struct{}], protocol protocol.Protocol, ctx context.Context) *Server {
+func NewServer(opts ServerOpts, clientProcessor processors.RequestProcessor, followerStore store.DataStorer[net.Conn, struct{}], protocol protocol.Protocol, ctx context.Context) (*Server, error) {
 	server := &Server{opts: opts, requestProcessor: clientProcessor, protocol: protocol, followerStore: followerStore}
 
-	// If this is a follower, we don't wanna start the follower without making a connection to the leader
 	if !opts.IsLeader {
 		leaderConn, err := net.Dial("tcp", opts.LeaderAddr)
 		if err != nil {
-			fmt.Printf("Error connecting to leader %s\n", err)
-			return nil
+			return nil, fmt.Errorf("error connecting to leader: %w", err)
 		}
-
 		server.leaderConn = leaderConn
 	}
 
-	return server
+	return server, nil
 }
 
-func (s *Server) Start() {
+func (s *Server) Start() error {
 	fmt.Println("Starting server on port", s.opts.Port)
+
 	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", s.opts.Port))
 	if err != nil {
-		fmt.Printf("Error %s\n", err)
-		return
+		return fmt.Errorf("error starting server: %w", err)
 	}
 	defer ln.Close()
 
 	if !s.opts.IsLeader {
-		s.syncWithLeader()
-		go s.handleConnection(s.leaderConn)
+		if err := s.syncWithLeader(); err != nil {
+			return err
+		}
+		go s.handleConnection(s.leaderConn, true)
 	}
 
-	s.listenForConnections(ln)
+	return s.listenForConnections(ln)
 }
 
-func (s *Server) listenForConnections(ln net.Listener) {
+func (s *Server) listenForConnections(ln net.Listener) error {
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
-			if errors.Is(err, io.EOF) {
-				fmt.Println("Connection closed")
-				continue
-			}
-			fmt.Printf("Error %s\n", err)
-			continue
+			return fmt.Errorf("error accepting connection: %w", err)
 		}
 
-		if s.opts.Role == ReplicaServerRole {
+		if s.opts.IsLeader && s.opts.Role == ReplicaServerRole {
 			s.followerStore.Set(conn, struct{}{})
 		}
 
-		go s.handleConnection(conn)
+		go s.handleConnection(conn, false)
 	}
 }
 
-func (s *Server) syncWithLeader() {
+func (s *Server) syncWithLeader() error {
 	_, err := s.leaderConn.Write([]byte("SYNC\n"))
 	if err != nil {
-		fmt.Printf("Error syncing with leader %s\n", err)
-		return
+		return fmt.Errorf("error syncing with leader: %w", err)
 	}
 
-	buf := make([]byte, 2048)
+	buf := make([]byte, BufferSize)
 	n, err := s.leaderConn.Read(buf)
 	if err != nil {
-		if errors.Is(err, io.EOF) {
-			fmt.Println("Connection closed")
-			return
-		}
-		fmt.Printf("Error %s", err)
-		return
+		return fmt.Errorf("error syncing with leader: %w", err)
 	}
 
 	data_received := buf[:n]
@@ -113,57 +102,91 @@ func (s *Server) syncWithLeader() {
 
 	//TODO: Set state in client store
 	// s.requestProcessor.SetAll()
+
+	return nil
 }
 
-func (s *Server) handleConnection(conn net.Conn) {
+func (s *Server) handleConnection(conn net.Conn, isFromLeader bool) {
 	defer conn.Close()
+
 	fmt.Println("New connection")
+
 	for {
-		buf := make([]byte, 2048)
+		buf := make([]byte, BufferSize)
 		n, err := conn.Read(buf)
 		if err != nil {
-			if errors.Is(err, io.EOF) {
-				fmt.Println("Connection closed")
-				return
-			}
-			fmt.Printf("Error %s", err)
+			s.handleReadError(err, conn)
 			return
 		}
 
-		data_received := string(buf[:n])
-		// The last character is a newline, so we remove it
-		data_received = data_received[:len(data_received)-1]
-		fmt.Printf("Received %d bytes: %s\n", n, data_received)
-
+		data_received := s.processReceivedData(buf, n)
 		request, err := s.protocol.Parse(data_received)
 		if err != nil {
-			fmt.Printf("Error parsing protocol %s\n", err)
-			s.writeError(err, conn)
-			continue
-		}
-		response, err := s.requestProcessor.Process(request)
-		if err != nil {
-			fmt.Printf("Error processing request %s\n", err)
 			s.writeError(err, conn)
 			continue
 		}
 
-		if s.opts.Role == ClientServerRole && request.Command.IsReplicable {
-			go s.propogateToFollowers(data_received)
+		if err := s.processCommand(request, isFromLeader, conn, data_received); err != nil {
+			s.writeError(err, conn)
+			continue
 		}
-
-		s.writeSuccess(response.Value, conn)
 	}
 }
 
+func (s *Server) processReceivedData(buf []byte, n int) string {
+	data_received := string(buf[:n])
+	data_received = data_received[:len(data_received)-1]
+	fmt.Printf("Received %d bytes: %s\n", n, data_received)
+	return data_received
+}
+
+func (s *Server) processCommand(request protocol.Request, isFromLeader bool, conn net.Conn, data_received string) error {
+	if !s.opts.IsLeader && !request.Command.CanFollowerProcess && !isFromLeader {
+		return fmt.Errorf("follower cannot process command %s", request.Command.Op)
+	}
+
+	response, err := s.requestProcessor.Process(request)
+	if err != nil {
+		return fmt.Errorf("error processing request: %w", err)
+	}
+
+	if s.opts.IsLeader && s.opts.Role == ClientServerRole && request.Command.IsReplicable {
+		go s.propogateToFollowers(data_received)
+	}
+
+	if !isFromLeader {
+		s.writeSuccess(response.Value, conn)
+	}
+
+	return nil
+}
+
+func (s *Server) handleReadError(err error, conn net.Conn) {
+	if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
+		fmt.Println("Connection timed out.. closing connection")
+		return
+	}
+
+	if errors.Is(err, io.EOF) {
+		if s.opts.IsLeader && s.opts.Role == ReplicaServerRole {
+			fmt.Println("Follower closed connection")
+			s.followerStore.Delete(conn)
+		}
+		fmt.Println("Connection closed")
+		return
+	}
+
+	fmt.Printf("Error %s", err)
+}
+
 func (s *Server) propogateToFollowers(data string) {
-	fmt.Println("Propogating request to all followers..")
 	followers := s.followerStore.GetAllKeys()
+	fmt.Printf("Propogating %s to %d followers", data, len(followers))
 
 	for _, follower := range followers {
 		_, err := follower.Write([]byte(fmt.Sprintf("%s\n", data)))
 		if err != nil {
-			fmt.Printf("Error writing to follower %s\n", err)
+			fmt.Printf("Error writing to follower: %s\n", err)
 			continue
 		}
 	}

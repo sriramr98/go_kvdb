@@ -14,15 +14,16 @@ import (
 func main() {
 
 	isLeader := flag.Bool("leader", false, "Start the server as a leader")
+	mainPort := flag.Int("port", 8080, "Port to start the server on")
 	flag.Parse()
 
-	startDatabase(*isLeader)
+	startDatabase(*isLeader, *mainPort)
 
 	// initiateGracefulShutdown(ctx, clientServer, followerServer)
 
 }
 
-func startDatabase(isLeader bool) {
+func startDatabase(isLeader bool, port int) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -30,7 +31,7 @@ func startDatabase(isLeader bool) {
 	inmemstore := store.NewInMemoryStore()
 	processor := &processors.CommandProcessor{Store: inmemstore}
 
-	runClientServer(replicationStore, processor, ctx, isLeader)
+	runClientServer(port, replicationStore, processor, ctx, isLeader)
 	if isLeader {
 		// Only a leader can initiate replication to followers
 		runReplicationServer(replicationStore, inmemstore, ctx)
@@ -39,11 +40,14 @@ func startDatabase(isLeader bool) {
 	select {}
 }
 
-func runClientServer(replicationStore store.DataStorer[net.Conn, struct{}], processor processors.RequestProcessor, ctx context.Context, isLeader bool) *core.Server {
+func runClientServer(port int, replicationStore store.DataStorer[net.Conn, struct{}], processor processors.RequestProcessor, ctx context.Context, isLeader bool) *core.Server {
 	protocol := protocol.ClientProtocol{}
-	opts := core.ServerOpts{Port: 8082, Role: core.ClientServerRole, IsLeader: isLeader, LeaderAddr: "localhost:8081"}
+	opts := core.ServerOpts{Port: port, Role: core.ClientServerRole, IsLeader: isLeader, LeaderAddr: "localhost:8081"}
 
-	clientServer := core.NewServer(opts, processor, replicationStore, protocol, ctx)
+	clientServer, err := core.NewServer(opts, processor, replicationStore, protocol, ctx)
+	if err != nil {
+		panic(err)
+	}
 	go clientServer.Start()
 
 	return clientServer
@@ -54,7 +58,10 @@ func runReplicationServer(replicationStore store.DataStorer[net.Conn, struct{}],
 	opts := core.ServerOpts{Port: 8081, Role: core.ReplicaServerRole, IsLeader: true}
 
 	processor := &processors.ReplicaProcessor{Store: clientStore}
-	replicationServer := core.NewServer(opts, processor, replicationStore, protocol, ctx)
+	replicationServer, err := core.NewServer(opts, processor, replicationStore, protocol, ctx)
+	if err != nil {
+		panic(err)
+	}
 	go replicationServer.Start()
 
 	return replicationServer
