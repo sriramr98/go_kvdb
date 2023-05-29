@@ -3,7 +3,8 @@ package protocol
 import "strings"
 
 var (
-	CMDSync Command = Command{Op: "SYNC", MinRequiredParams: 0, IsReplicable: false, CanFollowerProcess: false}
+	CMDSync       Command = Command{Op: "SYNC", MinRequiredParams: 0, IsReplicable: false, CanFollowerProcess: false}
+	CMDSyncUpdate Command = Command{Op: "SYNCUP", MinRequiredParams: 1, IsReplicable: false, CanFollowerProcess: false}
 )
 
 type FollowerProtocol struct {

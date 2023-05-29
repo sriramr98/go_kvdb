@@ -63,3 +63,17 @@ func (s *InMemoryStore[K, V]) GetAllKeys() []K {
 
 	return keys
 }
+
+func (s *InMemoryStore[K, V]) SetAll(data map[K]V) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.data = data
+}
+
+func (s *InMemoryStore[K, V]) GetAll() map[K]V {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return s.data
+}

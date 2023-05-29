@@ -1,9 +1,11 @@
 package processors
 
 import (
+	"fmt"
 	"strconv"
 	"time"
 
+	"github.com/vmihailenco/msgpack"
 	"gitub.com/sriramr98/go_kvdb/core/protocol"
 	"gitub.com/sriramr98/go_kvdb/store"
 )
@@ -13,6 +15,7 @@ type CommandProcessor struct {
 }
 
 func (cp *CommandProcessor) Process(request protocol.Request) (protocol.Response, error) {
+	fmt.Println("Client Processing request", request.Command)
 	switch request.Command {
 	case protocol.CMDGet:
 		return cp.processGet(request)
@@ -22,6 +25,8 @@ func (cp *CommandProcessor) Process(request protocol.Request) (protocol.Response
 		return cp.processDel(request)
 	case protocol.CMDPing:
 		return cp.processPing(request)
+	case protocol.CMDSyncUpdate:
+		return cp.processSyncUpdate(request)
 	default:
 		return protocol.Response{}, protocol.ErrInvalidCommand
 	}
@@ -68,4 +73,21 @@ func (cp *CommandProcessor) processPing(request protocol.Request) (protocol.Resp
 func (cp *CommandProcessor) processExpiry(key string, ttl time.Duration) {
 	<-time.After(ttl)
 	cp.Store.Delete(key)
+}
+
+func (cp *CommandProcessor) processSyncUpdate(request protocol.Request) (protocol.Response, error) {
+	data := []byte(request.Params[0])
+
+	var decoded map[string][]byte
+	err := msgpack.Unmarshal(data, &decoded)
+	if err != nil {
+		fmt.Printf("Error decoding: %s", err)
+		return protocol.Response{}, err
+	}
+
+	fmt.Printf("Decoded Map Len: %d", len(decoded))
+
+	cp.Store.SetAll(decoded)
+
+	return protocol.Response{Success: true}, nil
 }

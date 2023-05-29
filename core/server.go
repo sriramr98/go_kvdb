@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strings"
 
 	"gitub.com/sriramr98/go_kvdb/core/processors"
 	"gitub.com/sriramr98/go_kvdb/core/protocol"
@@ -84,6 +85,7 @@ func (s *Server) listenForConnections(ln net.Listener) error {
 }
 
 func (s *Server) syncWithLeader() error {
+	// Send sync request to leader returns the current state of the leader
 	_, err := s.leaderConn.Write([]byte("SYNC\n"))
 	if err != nil {
 		return fmt.Errorf("error syncing with leader: %w", err)
@@ -96,12 +98,15 @@ func (s *Server) syncWithLeader() error {
 	}
 
 	data_received := buf[:n]
-	fmt.Printf("Received state %s\n", string(data_received))
+	parsedData := strings.SplitAfter(string(data_received), "OK: ")[1]
+	fmt.Printf("Received state %s\n", parsedData)
 
 	//TODO: Deserialize state
-
 	//TODO: Set state in client store
-	// s.requestProcessor.SetAll()
+	s.requestProcessor.Process(protocol.Request{
+		Command: protocol.CMDSyncUpdate,
+		Params:  []string{string(parsedData)},
+	})
 
 	return nil
 }
@@ -125,7 +130,10 @@ func (s *Server) handleConnection(conn net.Conn, isFromLeader bool) {
 			s.writeError(err, conn)
 			continue
 		}
-
+		if !s.opts.IsLeader && !request.Command.CanFollowerProcess && !isFromLeader {
+			s.writeError(fmt.Errorf("follower cannot process command %s", request.Command.Op), conn)
+			return
+		}
 		if err := s.processCommand(request, isFromLeader, conn, data_received); err != nil {
 			s.writeError(err, conn)
 			continue
@@ -141,10 +149,6 @@ func (s *Server) processReceivedData(buf []byte, n int) string {
 }
 
 func (s *Server) processCommand(request protocol.Request, isFromLeader bool, conn net.Conn, data_received string) error {
-	if !s.opts.IsLeader && !request.Command.CanFollowerProcess && !isFromLeader {
-		return fmt.Errorf("follower cannot process command %s", request.Command.Op)
-	}
-
 	response, err := s.requestProcessor.Process(request)
 	if err != nil {
 		return fmt.Errorf("error processing request: %w", err)
