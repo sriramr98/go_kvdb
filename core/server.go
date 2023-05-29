@@ -1,16 +1,16 @@
 package core
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"io"
 	"net"
 	"strings"
 
+	"gitub.com/sriramr98/go_kvdb/core/network"
 	"gitub.com/sriramr98/go_kvdb/core/processors"
 	"gitub.com/sriramr98/go_kvdb/core/protocol"
-	"gitub.com/sriramr98/go_kvdb/store"
+	"gitub.com/sriramr98/go_kvdb/core/store"
 )
 
 type ServerRole int
@@ -32,15 +32,33 @@ type Server struct {
 	opts             ServerOpts
 	requestProcessor processors.RequestProcessor
 	protocol         protocol.Protocol
-	followerStore    store.DataStorer[net.Conn, struct{}]
-	leaderConn       net.Conn
+	followerStore    store.DataStorer[network.Conn, struct{}]
+	leaderConn       network.Conn
+	dialer           network.Dialer
+	listen           network.ListenFunc
 }
 
-func NewServer(opts ServerOpts, clientProcessor processors.RequestProcessor, followerStore store.DataStorer[net.Conn, struct{}], protocol protocol.Protocol, ctx context.Context) (*Server, error) {
-	server := &Server{opts: opts, requestProcessor: clientProcessor, protocol: protocol, followerStore: followerStore}
+// Creates a new TCP server
+func NewServer(
+	opts ServerOpts,
+	clientProcessor processors.RequestProcessor,
+	followerStore store.DataStorer[network.Conn, struct{}],
+	protocol protocol.Protocol,
+	dialer network.Dialer,
+	listen network.ListenFunc,
+) (*Server, error) {
+
+	server := &Server{
+		opts:             opts,
+		requestProcessor: clientProcessor,
+		protocol:         protocol,
+		followerStore:    followerStore,
+		dialer:           dialer,
+		listen:           listen,
+	}
 
 	if !opts.IsLeader {
-		leaderConn, err := net.Dial("tcp", opts.LeaderAddr)
+		leaderConn, err := server.dialer.Dial("tcp", opts.LeaderAddr)
 		if err != nil {
 			return nil, fmt.Errorf("error connecting to leader: %w", err)
 		}
@@ -53,7 +71,7 @@ func NewServer(opts ServerOpts, clientProcessor processors.RequestProcessor, fol
 func (s *Server) Start() error {
 	fmt.Println("Starting server on port", s.opts.Port)
 
-	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", s.opts.Port))
+	ln, err := s.listen("tcp", fmt.Sprintf(":%d", s.opts.Port))
 	if err != nil {
 		return fmt.Errorf("error starting server: %w", err)
 	}
@@ -69,7 +87,7 @@ func (s *Server) Start() error {
 	return s.listenForConnections(ln)
 }
 
-func (s *Server) listenForConnections(ln net.Listener) error {
+func (s *Server) listenForConnections(ln network.Listener) error {
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
@@ -111,7 +129,7 @@ func (s *Server) syncWithLeader() error {
 	return nil
 }
 
-func (s *Server) handleConnection(conn net.Conn, isFromLeader bool) {
+func (s *Server) handleConnection(conn network.Conn, isFromLeader bool) {
 	defer conn.Close()
 
 	fmt.Println("New connection")
@@ -148,7 +166,7 @@ func (s *Server) processReceivedData(buf []byte, n int) string {
 	return data_received
 }
 
-func (s *Server) processCommand(request protocol.Request, isFromLeader bool, conn net.Conn, data_received string) error {
+func (s *Server) processCommand(request protocol.Request, isFromLeader bool, conn network.Conn, data_received string) error {
 	response, err := s.requestProcessor.Process(request)
 	if err != nil {
 		return fmt.Errorf("error processing request: %w", err)
@@ -165,7 +183,7 @@ func (s *Server) processCommand(request protocol.Request, isFromLeader bool, con
 	return nil
 }
 
-func (s *Server) handleReadError(err error, conn net.Conn) {
+func (s *Server) handleReadError(err error, conn network.Conn) {
 	if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
 		fmt.Println("Connection timed out.. closing connection")
 		return
@@ -196,11 +214,11 @@ func (s *Server) propogateToFollowers(data string) {
 	}
 }
 
-func (s *Server) writeError(err error, conn net.Conn) {
+func (s *Server) writeError(err error, conn network.Conn) {
 	conn.Write([]byte(fmt.Sprintf("ERR: %s\n", err)))
 }
 
-func (s *Server) writeSuccess(value []byte, conn net.Conn) {
+func (s *Server) writeSuccess(value []byte, conn network.Conn) {
 	if len(value) == 0 {
 		conn.Write([]byte("OK\n"))
 		return

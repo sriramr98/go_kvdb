@@ -1,14 +1,13 @@
 package main
 
 import (
-	"context"
 	"flag"
-	"net"
 
 	"gitub.com/sriramr98/go_kvdb/core"
+	"gitub.com/sriramr98/go_kvdb/core/network"
 	"gitub.com/sriramr98/go_kvdb/core/processors"
 	"gitub.com/sriramr98/go_kvdb/core/protocol"
-	"gitub.com/sriramr98/go_kvdb/store"
+	"gitub.com/sriramr98/go_kvdb/core/store"
 )
 
 func main() {
@@ -24,27 +23,24 @@ func main() {
 }
 
 func startDatabase(isLeader bool, port int) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	replicationStore := store.NewReplicationStore()
 	inmemstore := store.NewInMemoryStore()
 	processor := &processors.CommandProcessor{Store: inmemstore}
 
-	runClientServer(port, replicationStore, processor, ctx, isLeader)
+	runClientServer(port, replicationStore, processor, isLeader)
 	if isLeader {
 		// Only a leader can initiate replication to followers
-		runReplicationServer(replicationStore, inmemstore, ctx)
+		runReplicationServer(replicationStore, inmemstore)
 	}
 
 	select {}
 }
 
-func runClientServer(port int, replicationStore store.DataStorer[net.Conn, struct{}], processor processors.RequestProcessor, ctx context.Context, isLeader bool) *core.Server {
+func runClientServer(port int, replicationStore store.DataStorer[network.Conn, struct{}], processor processors.RequestProcessor, isLeader bool) *core.Server {
 	protocol := protocol.ClientProtocol{}
 	opts := core.ServerOpts{Port: port, Role: core.ClientServerRole, IsLeader: isLeader, LeaderAddr: "localhost:8081"}
 
-	clientServer, err := core.NewServer(opts, processor, replicationStore, protocol, ctx)
+	clientServer, err := core.NewServer(opts, processor, replicationStore, protocol, network.NetDialer{}, network.Listen)
 	if err != nil {
 		panic(err)
 	}
@@ -53,12 +49,12 @@ func runClientServer(port int, replicationStore store.DataStorer[net.Conn, struc
 	return clientServer
 }
 
-func runReplicationServer(replicationStore store.DataStorer[net.Conn, struct{}], clientStore store.DataStorer[string, []byte], ctx context.Context) *core.Server {
+func runReplicationServer(replicationStore store.DataStorer[network.Conn, struct{}], clientStore store.DataStorer[string, []byte]) *core.Server {
 	protocol := protocol.FollowerProtocol{}
 	opts := core.ServerOpts{Port: 8081, Role: core.ReplicaServerRole, IsLeader: true}
 
 	processor := &processors.ReplicaProcessor{Store: clientStore}
-	replicationServer, err := core.NewServer(opts, processor, replicationStore, protocol, ctx)
+	replicationServer, err := core.NewServer(opts, processor, replicationStore, protocol, &network.NetDialer{}, network.Listen)
 	if err != nil {
 		panic(err)
 	}

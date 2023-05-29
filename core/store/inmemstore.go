@@ -2,8 +2,9 @@ package store
 
 import (
 	"errors"
-	"net"
 	"sync"
+
+	"gitub.com/sriramr98/go_kvdb/core/network"
 )
 
 type InMemoryStore[K comparable, V any] struct {
@@ -17,9 +18,9 @@ func NewInMemoryStore() *InMemoryStore[string, []byte] {
 	}
 }
 
-func NewReplicationStore() *InMemoryStore[net.Conn, struct{}] {
-	return &InMemoryStore[net.Conn, struct{}]{
-		data: make(map[net.Conn]struct{}),
+func NewReplicationStore() *InMemoryStore[network.Conn, struct{}] {
+	return &InMemoryStore[network.Conn, struct{}]{
+		data: make(map[network.Conn]struct{}),
 	}
 }
 

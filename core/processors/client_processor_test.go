@@ -30,6 +30,13 @@ func (mds *MockDataStore) GetAllKeys() []string {
 	return []string{"test"}
 }
 
+func (mds *MockDataStore) GetAll() map[string][]byte {
+	return map[string][]byte{"test": []byte("test")}
+}
+
+func (mds *MockDataStore) SetAll(data map[string][]byte) {
+}
+
 func TestCommandProcessor(t *testing.T) {
 
 	store := &MockDataStore{}

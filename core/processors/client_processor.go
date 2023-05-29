@@ -7,7 +7,7 @@ import (
 
 	"github.com/vmihailenco/msgpack"
 	"gitub.com/sriramr98/go_kvdb/core/protocol"
-	"gitub.com/sriramr98/go_kvdb/store"
+	"gitub.com/sriramr98/go_kvdb/core/store"
 )
 
 type CommandProcessor struct {
