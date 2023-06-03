@@ -18,7 +18,6 @@ type Response struct {
 }
 type Protocol interface {
 	Parse(input string) (Request, error)
-	extractCommand(input string) (Command, error)
 }
 
 type Command struct {

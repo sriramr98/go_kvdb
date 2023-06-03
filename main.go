@@ -40,7 +40,7 @@ func runClientServer(port int, replicationStore store.DataStorer[network.Conn, s
 	protocol := protocol.ClientProtocol{}
 	opts := core.ServerOpts{Port: port, Role: core.ClientServerRole, IsLeader: isLeader, LeaderAddr: "localhost:8081"}
 
-	clientServer, err := core.NewServer(opts, processor, replicationStore, protocol, network.NetDialer{}, network.Listen)
+	clientServer, err := core.NewServer(opts, processor, replicationStore, protocol, network.NetDialer{}, network.NetworkListener{})
 	if err != nil {
 		panic(err)
 	}
@@ -54,7 +54,7 @@ func runReplicationServer(replicationStore store.DataStorer[network.Conn, struct
 	opts := core.ServerOpts{Port: 8081, Role: core.ReplicaServerRole, IsLeader: true}
 
 	processor := &processors.ReplicaProcessor{Store: clientStore}
-	replicationServer, err := core.NewServer(opts, processor, replicationStore, protocol, &network.NetDialer{}, network.Listen)
+	replicationServer, err := core.NewServer(opts, processor, replicationStore, protocol, &network.NetDialer{}, network.NetworkListener{})
 	if err != nil {
 		panic(err)
 	}

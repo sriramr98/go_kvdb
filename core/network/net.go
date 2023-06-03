@@ -13,12 +13,14 @@ type Dialer interface {
 	Dial(network, address string) (Conn, error)
 }
 
-type Listener interface {
+type Processor interface {
 	Accept() (Conn, error)
 	Close() error
 }
 
-type ListenFunc func(network, laddr string) (Listener, error)
+type Listener interface {
+	Listen(network, addr string) (Processor, error)
+}
 
 type NetDialer struct {
 }
@@ -27,23 +29,26 @@ func (n NetDialer) Dial(network, address string) (Conn, error) {
 	return net.Dial(network, address)
 }
 
-type NetListener struct {
+type NetProcessor struct {
 	ln net.Listener
 }
 
-func (n *NetListener) Accept() (Conn, error) {
+func (n NetProcessor) Accept() (Conn, error) {
 	return n.ln.Accept()
 }
 
-func (n *NetListener) Close() error {
+func (n NetProcessor) Close() error {
 	return n.ln.Close()
 }
 
-func Listen(network, addr string) (Listener, error) {
+type NetworkListener struct {
+}
+
+func (l NetworkListener) Listen(network, addr string) (Processor, error) {
 	ln, err := net.Listen(network, addr)
 	if err != nil {
-		return nil, err
+		return NetProcessor{}, err
 	}
 
-	return &NetListener{ln: ln}, nil
+	return NetProcessor{ln: ln}, nil
 }

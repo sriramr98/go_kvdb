@@ -35,7 +35,7 @@ type Server struct {
 	followerStore    store.DataStorer[network.Conn, struct{}]
 	leaderConn       network.Conn
 	dialer           network.Dialer
-	listen           network.ListenFunc
+	listener         network.Listener
 }
 
 // Creates a new TCP server
@@ -45,7 +45,7 @@ func NewServer(
 	followerStore store.DataStorer[network.Conn, struct{}],
 	protocol protocol.Protocol,
 	dialer network.Dialer,
-	listen network.ListenFunc,
+	listener network.Listener,
 ) (*Server, error) {
 
 	server := &Server{
@@ -54,7 +54,7 @@ func NewServer(
 		protocol:         protocol,
 		followerStore:    followerStore,
 		dialer:           dialer,
-		listen:           listen,
+		listener:         listener,
 	}
 
 	if !opts.IsLeader {
@@ -71,7 +71,7 @@ func NewServer(
 func (s *Server) Start() error {
 	fmt.Println("Starting server on port", s.opts.Port)
 
-	ln, err := s.listen("tcp", fmt.Sprintf(":%d", s.opts.Port))
+	ln, err := s.listener.Listen("tcp", fmt.Sprintf(":%d", s.opts.Port))
 	if err != nil {
 		return fmt.Errorf("error starting server: %w", err)
 	}
@@ -87,7 +87,7 @@ func (s *Server) Start() error {
 	return s.listenForConnections(ln)
 }
 
-func (s *Server) listenForConnections(ln network.Listener) error {
+func (s *Server) listenForConnections(ln network.Processor) error {
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
