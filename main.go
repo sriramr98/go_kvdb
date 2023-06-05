@@ -36,7 +36,7 @@ func startDatabase(isLeader bool, port int) {
 	select {}
 }
 
-func runClientServer(port int, replicationStore store.DataStorer[network.Conn, struct{}], processor processors.RequestProcessor, isLeader bool) *core.Server {
+func runClientServer(port int, replicationStore store.DataStorer[network.Conn, struct{}], processor processors.Processor, isLeader bool) *core.Server {
 	protocol := protocol.ClientProtocol{}
 	opts := core.ServerOpts{Port: port, Role: core.ClientServerRole, IsLeader: isLeader, LeaderAddr: "localhost:8081"}
 
