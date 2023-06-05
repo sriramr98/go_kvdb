@@ -1,8 +1,9 @@
 package protocol
 
 import (
-	"errors"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestProtocol(t *testing.T) {
@@ -33,52 +34,33 @@ func TestProtocol(t *testing.T) {
 
 		t.Run("should return CMDGet", func(t *testing.T) {
 			cmd, err := p.extractCommand("GET")
-			if cmd != CMDGet {
-				t.Errorf("Expected %s, got %s", CMDGet.Op, cmd.Op)
-			}
-			if err != nil {
-				t.Errorf("Expected nil, got %s", err)
-			}
+			assert.Equal(t, CMDGet, cmd)
+			assert.NoError(t, err)
 		})
 
 		t.Run("should return CMDSet", func(t *testing.T) {
 			cmd, err := p.extractCommand("SET")
-			if cmd != CMDSet {
-				t.Errorf("Expected %s, got %s", CMDSet.Op, cmd.Op)
-			}
-			if err != nil {
-				t.Errorf("Expected nil, got %s", err)
-			}
+			assert.Equal(t, CMDSet, cmd)
+			assert.NoError(t, err)
 		})
 
 		t.Run("should return CMDDel", func(t *testing.T) {
 			cmd, err := p.extractCommand("DEL")
-			if cmd != CMDDel {
-				t.Errorf("Expected %s, got %s", CMDDel.Op, cmd.Op)
-			}
-			if err != nil {
-				t.Errorf("Expected nil, got %s", err)
-			}
+			assert.Equal(t, CMDDel, cmd)
+			assert.NoError(t, err)
 		})
 
 		t.Run("should return CMDPing", func(t *testing.T) {
 			cmd, err := p.extractCommand("PING")
-			if cmd != CMDPing {
-				t.Errorf("Expected %s, got %s", CMDPing.Op, cmd.Op)
-			}
-			if err != nil {
-				t.Errorf("Expected nil, got %s", err)
-			}
+			assert.Equal(t, CMDPing, cmd)
+			assert.NoError(t, err)
 		})
 
 		t.Run("should return empty command", func(t *testing.T) {
 			cmd, err := p.extractCommand("INVALID")
-			if cmd != (Command{}) {
-				t.Errorf("Expected empty command, got %s", cmd.Op)
-			}
-			if !errors.Is(err, ErrInvalidCommand) {
-				t.Errorf("Expected %s, got %s", ErrInvalidCommand, err)
-			}
+			assert.Equal(t, Command{}, cmd)
+			assert.Error(t, err)
+			assert.ErrorIs(t, err, ErrInvalidCommand)
 		})
 
 	})
@@ -89,51 +71,26 @@ func TestProtocol(t *testing.T) {
 
 		t.Run("should return error", func(t *testing.T) {
 			_, err := p.Parse("")
-			if err == nil {
-				t.Errorf("Expected error, got nil")
-			}
 
-			if !errors.Is(err, ErrInvalidCommand) {
-				t.Errorf("Expected %s, got %s", ErrInvalidCommand, err)
-			}
+			assert.Error(t, err)
+			assert.ErrorIs(t, err, ErrInvalidCommand)
 		})
 
 		t.Run("parses valid command", func(t *testing.T) {
 			req, err := p.Parse("GET key")
-			if err != nil {
-				t.Errorf("Expected nil, got %s", err)
-			}
-			if req.Command != CMDGet {
-				t.Errorf("Expected %s, got %s", CMDGet.Op, req.Command.Op)
-			}
-			if len(req.Params) != 1 {
-				t.Errorf("Expected 1, got %d", len(req.Params))
-			}
-			if req.Params[0] != "key" {
-				t.Errorf("Expected key, got %s", req.Params[0])
-			}
+			assert.NoError(t, err)
+			assert.Equal(t, CMDGet, req.Command)
+			assert.Equal(t, []string{"key"}, req.Params)
+			assert.Equal(t, len(req.Params), 1)
 		})
 
 		t.Run("parses valid SET command with optional TTL", func(t *testing.T) {
 			req, err := p.Parse("SET key value 100")
-			if err != nil {
-				t.Errorf("Expected nil, got %s", err)
-			}
-			if req.Command != CMDSet {
-				t.Errorf("Expected %s, got %s", CMDSet.Op, req.Command.Op)
-			}
-			if len(req.Params) != 3 {
-				t.Errorf("Expected 3, got %d", len(req.Params))
-			}
-			if req.Params[0] != "key" {
-				t.Errorf("Expected key, got %s", req.Params[0])
-			}
-			if req.Params[1] != "value" {
-				t.Errorf("Expected value, got %s", req.Params[1])
-			}
-			if req.Params[2] != "100" {
-				t.Errorf("Expected 100, got %s", req.Params[2])
-			}
+			assert.NoError(t, err)
+			assert.Equal(t, CMDSet, req.Command)
+			assert.Equal(t, []string{"key", "value", "100"}, req.Params)
+			assert.Equal(t, len(req.Params), 3)
+
 		})
 
 	})

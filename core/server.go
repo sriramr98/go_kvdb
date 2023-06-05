@@ -30,7 +30,7 @@ type ServerOpts struct {
 
 type Server struct {
 	opts             ServerOpts
-	requestProcessor processors.RequestProcessor
+	requestProcessor processors.Processor
 	protocol         protocol.Protocol
 	followerStore    store.DataStorer[network.Conn, struct{}]
 	leaderConn       network.Conn
@@ -41,7 +41,7 @@ type Server struct {
 // Creates a new TCP server
 func NewServer(
 	opts ServerOpts,
-	clientProcessor processors.RequestProcessor,
+	clientProcessor processors.Processor,
 	followerStore store.DataStorer[network.Conn, struct{}],
 	protocol protocol.Protocol,
 	dialer network.Dialer,
@@ -90,6 +90,7 @@ func (s *Server) Start() error {
 func (s *Server) listenForConnections(ln network.Processor) error {
 	for {
 		conn, err := ln.Accept()
+		defer ln.Close()
 		if err != nil {
 			return fmt.Errorf("error accepting connection: %w", err)
 		}
