@@ -3,8 +3,6 @@ package store
 import (
 	"fmt"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
 
 func TestInMemStore(t *testing.T) {
@@ -15,14 +13,21 @@ func TestInMemStore(t *testing.T) {
 		store.Set("foo", []byte("bar"))
 		value, err := store.Get("foo")
 
-		assert.NoError(t, err)
-		assert.Equal(t, []byte("bar"), value)
+		if err != nil {
+			t.Errorf("Expected err to be nil, got %v", err)
+		}
+
+		if string(value) != "bar" {
+			t.Errorf("Expected value to be 'bar', got %v", value)
+		}
 	})
 
 	t.Run("get key that doesn't exist returns error", func(t *testing.T) {
 		_, err := store.Get("test1")
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, ErrKeyNotFound)
+
+		if err != ErrKeyNotFound {
+			t.Errorf("Expected err to be ErrKeyNotFound, got %v", err)
+		}
 	})
 
 	t.Run("delete key removes key", func(t *testing.T) {
@@ -30,8 +35,9 @@ func TestInMemStore(t *testing.T) {
 		store.Delete("test2")
 		_, err := store.Get("test2")
 
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, ErrKeyNotFound)
+		if err != ErrKeyNotFound {
+			t.Errorf("Expected err to be ErrKeyNotFound, got %v", err)
+		}
 	})
 }
 
