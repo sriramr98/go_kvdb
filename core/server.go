@@ -1,6 +1,7 @@
 package core
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -58,12 +59,14 @@ func (s *Server) handleConnection(conn net.Conn) {
 			return
 		}
 
-		data_received := string(buf[:n])
-		// The last character is a newline, so we remove it
-		data_received = data_received[:len(data_received)-1]
-		fmt.Printf("Received %d bytes: %s\n", n, data_received)
+		data := buf[:n]
+		if bytes.HasSuffix(data, []byte("\n")) {
+			// The last character is a newline, so we remove it
+			data = data[:len(data)-1]
+		}
+		fmt.Printf("Received %d bytes: %s\n", n, data)
 
-		request, err := ParseProtocol(data_received)
+		request, err := ParseProtocol(string(data))
 		if err != nil {
 			fmt.Printf("Error parsing protocol %s\n", err)
 			s.writeError(err, conn)
