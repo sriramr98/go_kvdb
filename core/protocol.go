@@ -14,8 +14,8 @@ type Request struct {
 }
 
 type Response struct {
-	Success bool
 	Value   []byte
+	Success bool
 }
 
 type Command struct {
@@ -62,6 +62,7 @@ func ParseProtocol(input string) (Request, error) {
 	}
 	params := input_parts[1:]
 
+	// TODO: Add better validation - For example, if EX is set, then the value should be present and should be an integer for PUT command
 	if !command.isParamsValid(params) {
 		return Request{}, errors.New("invalid params")
 	}

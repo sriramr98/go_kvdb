@@ -13,8 +13,8 @@ type ServerOpts struct {
 }
 
 type Server struct {
-	opts             ServerOpts
 	requestProcessor RequestProcessor
+	opts             ServerOpts
 }
 
 func NewServer(opts ServerOpts, processor RequestProcessor) *Server {
@@ -84,7 +84,7 @@ func (s *Server) handleConnection(conn net.Conn) {
 }
 
 func (s *Server) writeError(err error, conn net.Conn) {
-	conn.Write([]byte(fmt.Sprintf("ERR: %s\n", err)))
+	fmt.Fprintf(conn, "ERR: %s\n", err)
 }
 
 func (s *Server) writeSuccess(value []byte, conn net.Conn) {
@@ -92,5 +92,5 @@ func (s *Server) writeSuccess(value []byte, conn net.Conn) {
 		conn.Write([]byte("OK\n"))
 		return
 	}
-	conn.Write([]byte(fmt.Sprintf("OK: %s\n", value)))
+	fmt.Fprintf(conn, "OK: %s\n", value)
 }

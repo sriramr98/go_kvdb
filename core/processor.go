@@ -40,7 +40,6 @@ func (cp *CommandProcessor) processGet(request Request) (Response, error) {
 }
 
 func (cp *CommandProcessor) processSet(request Request) (Response, error) {
-
 	key := request.Params[0]
 	value := request.Params[1]
 
@@ -64,7 +63,7 @@ func (cp *CommandProcessor) processDel(request Request) (Response, error) {
 	return Response{Success: true}, nil
 }
 
-func (cp *CommandProcessor) processPing(request Request) (Response, error) {
+func (cp *CommandProcessor) processPing(_ Request) (Response, error) {
 	return Response{Success: true, Value: []byte("PONG")}, nil
 }
 
