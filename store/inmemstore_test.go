@@ -6,18 +6,16 @@ import (
 )
 
 func TestInMemStore(t *testing.T) {
-
 	store := NewInMemoryStore()
 
 	t.Run("get key after put returns value", func(t *testing.T) {
-		store.Set("foo", []byte("bar"))
+		store.Set("foo", NewDataObj([]byte("bar"), 0))
 		value, err := store.Get("foo")
-
 		if err != nil {
 			t.Errorf("Expected err to be nil, got %v", err)
 		}
 
-		if string(value) != "bar" {
+		if string(value.value) != "bar" {
 			t.Errorf("Expected value to be 'bar', got %v", value)
 		}
 	})
@@ -31,7 +29,7 @@ func TestInMemStore(t *testing.T) {
 	})
 
 	t.Run("delete key removes key", func(t *testing.T) {
-		store.Set("test2", []byte("foo"))
+		store.Set("test2", NewDataObj([]byte("value2"), 0))
 		store.Delete("test2")
 		_, err := store.Get("test2")
 
@@ -46,7 +44,7 @@ func BenchmarkInMemStore(b *testing.B) {
 		store := NewInMemoryStore()
 
 		for i := 0; i < b.N; i++ {
-			store.Set(fmt.Sprintf("foo%q", i), []byte("bar"))
+			store.Set(fmt.Sprintf("foo%q", i), NewDataObj([]byte("bar"), 0))
 		}
 	})
 
