@@ -3,7 +3,6 @@ package store
 import (
 	"errors"
 	"sync"
-	"time"
 )
 
 type DataObj struct {
@@ -19,12 +18,7 @@ func (do DataObj) ExpiresAt() int {
 	return do.expiresAt
 }
 
-func NewDataObj(value []byte, expirySeconds int) DataObj {
-	//
-	expiresAt := -1
-	if expirySeconds > 0 {
-		expiresAt = int(time.Now().Add(time.Duration(expirySeconds) * time.Second).Unix())
-	}
+func NewDataObj(value []byte, expiresAt int) DataObj {
 	return DataObj{
 		value:     value,
 		expiresAt: expiresAt,

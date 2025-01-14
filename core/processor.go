@@ -1,10 +1,16 @@
 package core
 
 import (
+	"errors"
 	"strconv"
 	"time"
 
 	"gitub.com/sriramr98/go_kvdb/store"
+)
+
+var (
+	ErrExpiryNotANumber   = errors.New("expiry value expected to be a number")
+	ErrExpiryLessThanZero = errors.New("expiry seconds should be greater than 0")
 )
 
 type RequestProcessor interface {
@@ -54,12 +60,21 @@ func (cp *CommandProcessor) processSet(request Request) (Response, error) {
 	if len(request.Params) > 2 {
 		ttlSet, err := strconv.Atoi(request.Params[2])
 		if err != nil {
-			return Response{}, err
+			return Response{}, ErrExpiryNotANumber
+		}
+
+		if ttlSet < 0 {
+			return Response{}, ErrExpiryLessThanZero
 		}
 		ttlSeconds = ttlSet
 	}
 
-	cp.Store.Set(key, store.NewDataObj([]byte(value), ttlSeconds))
+	expiresAt := -1
+	if ttlSeconds > 0 {
+		expiresAt = int(time.Now().Add(time.Duration(ttlSeconds) * time.Second).Unix())
+	}
+
+	cp.Store.Set(key, store.NewDataObj([]byte(value), expiresAt))
 
 	return Response{Success: true}, nil
 }
@@ -71,9 +86,4 @@ func (cp *CommandProcessor) processDel(request Request) (Response, error) {
 
 func (cp *CommandProcessor) processPing(_ Request) (Response, error) {
 	return Response{Success: true, Value: []byte("PONG")}, nil
-}
-
-func (cp *CommandProcessor) processExpiry(key string, ttl time.Duration) {
-	<-time.After(ttl)
-	cp.Store.Delete(key)
 }
