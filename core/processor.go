@@ -18,7 +18,7 @@ type RequestProcessor interface {
 }
 
 type CommandProcessor struct {
-	Store store.DataStorer[string, store.DataObj]
+	Store *store.InMemoryStore
 }
 
 func (cp *CommandProcessor) Process(request Request) (Response, error) {
@@ -42,7 +42,7 @@ func (cp *CommandProcessor) processGet(request Request) (Response, error) {
 		return Response{}, err
 	}
 
-	if res.ExpiresAt() > 0 && time.Now().After(time.Unix(int64(res.ExpiresAt()), 0)) {
+	if res.IsExpired(time.Now()) {
 		// if key is already expired, delete it
 		cp.Store.Delete(request.Params[0])
 		return Response{}, store.ErrKeyNotFound

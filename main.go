@@ -8,5 +8,7 @@ import (
 func main() {
 	inmemstore := store.NewInMemoryStore()
 	processor := &core.CommandProcessor{Store: inmemstore}
+
+	go core.DeleteExpiredKeys(inmemstore)
 	core.NewServer(core.ServerOpts{Port: 8080}, processor).Start()
 }
